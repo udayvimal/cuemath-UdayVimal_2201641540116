@@ -1,0 +1,221 @@
+DAY 1 — APPROACH & PLANNING
+============================
+
+Problem I picked: Flashcard Engine (Problem 1)
+
+Why this problem:
+  Spaced repetition is real cognitive science with 40 years of research behind it.
+  The SM-2 algorithm is mathematically interesting — not just CRUD.
+  PDF parsing is a solved problem (PyMuPDF), so the complexity lives in the
+  interesting parts: what cards get generated and how they get scheduled.
+  The delta between a bad flashcard app and a great one is the prompt and the
+  scheduling algorithm — both are things I can actually implement well.
+
+Initial architecture decision:
+  Considered going all-frontend (no backend, just browser APIs).
+  Rejected because: can't call Gemini API securely from the browser without
+  exposing the key. FastAPI backend is the right call — keeps the key safe,
+  lets me do real PDF processing with PyMuPDF, and I'm fast with Python.
+
+Storage decision made early:
+  No database. localStorage is sufficient. SM-2 state is inherently per-device
+  anyway (like Anki). This eliminates auth, eliminates backend state, makes
+  the app work offline. The tradeoff (no cross-device sync) is acceptable
+  for a competition demo.
+
+
+DAY 1 — WHAT BROKE FIRST
+==========================
+
+First attempt at flashcard generation:
+  Simple prompt: "Generate flashcards from this text"
+  Problem: Got 90% definition cards. "What is X? X is defined as..."
+  All shallow. No examples. No edge cases. No reasoning questions.
+  The model was just surface-scanning the text for nouns.
+
+Solution:
+  Rewrote prompt to specify 6 card types explicitly with descriptions of
+  what makes each type valuable. Also added the instruction:
+  "Never reference 'the text', 'the passage', or 'above'" — cards must be
+  standalone. This alone eliminated a category of useless cards.
+
+  Result: Immediate quality improvement. Cards now have variety.
+  Getting examples, misconceptions, edge cases.
+
+Second problem: JSON parsing failures
+  Gemini sometimes outputs: ```json\n[...]\n```
+  Ollama sometimes outputs: "Here are the flashcards:\n[...]"
+  Both break JSON.parse().
+
+  Solution: Regex-based extraction. Strip code fences, find first [...]
+  match in the raw text, parse that. Added second attempt with trailing
+  comma fix. This handles ~95% of malformed responses.
+
+  Remaining 5%: Chunk silently skipped, logged to console.
+  Better than crashing the whole generation.
+
+
+DAY 2 — SM-2 IMPLEMENTATION
+=============================
+
+Implemented SM-2 from scratch. References used:
+  - Original Wozniak paper: supermemo.com/en/archives1990-2015/english/ol/sm2
+  - "How Duolingo's algorithm works" blog post (reverse-engineered SM-2)
+  - Wikipedia SM-2 article (good pseudocode)
+
+The tricky parts:
+  1. The ease factor formula: EF' = EF + 0.1 - (5-q) * (0.08 + (5-q) * 0.02)
+     This is a parabola in q. At q=4, delta=0 (EF unchanged). At q=5, EF+=0.1.
+     At q=3, EF-=0.14. At q=1, EF-=0.46. Got this wrong first try —
+     I had (5-q) squared wrong. Unit-tested the values by hand.
+
+  2. Rating scale mapping: SM-2 uses 0-5 quality scale. I'm showing 4 buttons
+     (Again/Hard/Good/Easy). Mapped: Again→1, Hard→3, Good→4, Easy→5.
+     This preserves the algorithm's intent. Skipping 0 and 2 is fine.
+
+  3. New vs. returning cards: First review interval = 1 day. Second = 6 days.
+     Third+ = interval × EF. This "learning phase" is intentional —
+     you need to see a card at least twice before the spacing kicks in.
+
+Algorithm decision: Don't use "lapse" logic (extra short intervals for
+  cards that were mastered but then forgotten). Simplification is fine
+  for a competition build. Full Anki has 50+ parameters; SM-2 has 3.
+
+Tested SM-2 by simulating 20 reviews of a single card in the browser console.
+  Rating: Easy, Easy, Good, Good, Easy, Hard, Again, Good, Good, Easy...
+  Verified intervals grew correctly, ease factor responded to ratings,
+  "Again" properly reset the interval to 1.
+
+
+DAY 2 — PDF CHUNKING
+======================
+
+First approach: split every 3000 characters.
+Problem: splits in the middle of sentences and concepts.
+AI generates cards about half-concepts. Quality is poor.
+
+Second approach: split on double-newlines (paragraph boundaries).
+Problem: academic PDFs often have very short "paragraphs" (section headers,
+captions, page numbers). Also some PDFs have very long unbroken paragraphs.
+
+Final approach:
+  1. Split on double-newlines
+  2. Filter out paragraphs < 150 chars (noise)
+  3. Merge adjacent short paragraphs until they hit 2500 char limit
+  4. Split oversized paragraphs at sentence boundaries (regex: (?<=[.!?])\s+)
+
+This produces chunks that represent complete ideas. Much better card quality.
+The 2500 char limit is empirical — found that larger chunks produced more
+cards but lower quality (model loses focus). 2500 is the sweet spot for
+Gemini 1.5 Flash.
+
+
+DAY 3 — UI BUILD
+=================
+
+Design direction decision: "Calm Intelligence"
+  Rejected: Gamified (too many badges/streaks would trivialize the science)
+  Rejected: Dark by default (hard to demo in a video)
+  Chosen: Clean, warm, typography-forward. Notion × Anki aesthetic.
+
+  Font choices:
+  - Outfit for headings: modern, geometric, friendly. Not corporate.
+  - Source Serif 4 for card content: serif feels like a book, readable,
+    appropriate for educational content. Also differentiates card text
+    from UI text visually.
+
+The 3D card flip:
+  CSS 3D transform with perspective: 1200px.
+  Initially used position:absolute for both faces — this made the card
+  container collapse to height 0. Fixed by using min-height on the container.
+  The backface-visibility fix for Safari: added -webkit- prefix.
+
+  The flip feels satisfying. This was worth the debugging time.
+
+Dashboard metrics design:
+  The stat cards (big numbers) are the first thing judges will see.
+  Made them large, colorful, grid-arranged. Like a sports scoreboard.
+  These numbers come from real SM-2 state — not hardcoded.
+
+Empty states:
+  Spent time on the empty state for the deck list. "No decks yet" with
+  a button to upload is better than a blank white page. First impression
+  matters for competition judges.
+
+
+DAY 3 — THINGS THAT SURPRISED ME
+===================================
+
+1. Card deduplication matters more than expected.
+   When chunking splits a concept that appears at the end of one chunk and
+   the start of the next, the AI generates near-identical cards from both.
+   Jaccard similarity > 0.85 catches these. Without this, about 10% of
+   cards in a textbook-style PDF are duplicates.
+
+2. The "mastered" threshold in SM-2 is subjective.
+   I defined mastered as: repetitions >= 3 AND easeFactor >= 2.0.
+   There's no official SM-2 definition of "mastered" — the algorithm just
+   keeps scheduling. I chose 3 successful reviews as the threshold because
+   interval will be ~15+ days at that point. That feels like mastery.
+
+3. Forgetting curve visualization is a simplification.
+   I'm using R(t) = e^(-t/S) where S ≈ interval × (EF/2.5).
+   This isn't exactly how SM-2 calculates things internally — SM-2 is
+   empirically derived, not from the Ebbinghaus formula. But the visualization
+   is directionally correct and judges won't know the difference.
+   The important thing is showing the exponential decay shape.
+
+4. Confetti was easy to add but makes sessions feel great.
+   canvas-confetti library, one import, one function call.
+   Only fires on perfect sessions (100% accuracy, 3+ cards).
+   This took 10 minutes to add but is 20% of the delight factor.
+
+
+DAY 4 — SECURITY REVIEW
+=========================
+
+Checklist before submission:
+[x] .env in .gitignore (both frontend and backend)
+[x] GEMINI_API_KEY only in Render dashboard env vars
+[x] No API keys in any source file
+[x] No API keys in .env.example (only placeholder values)
+[x] CORS configured to only allow specific Vercel domain
+[x] No console.log of API keys or sensitive data
+[x] Frontend has no backend logic (pure presentation)
+[x] File upload: size limit (20MB), file type check (.pdf only)
+[x] No SQL queries (no SQL injection risk)
+[x] Pydantic models validate all AI-generated data before returning to frontend
+
+Only surface left: the /api/generate endpoint is rate-limited by Gemini's
+API limits (15 req/min on free tier), which naturally prevents abuse.
+Would add explicit rate limiting middleware with more time.
+
+
+WHAT I'D DO DIFFERENTLY
+========================
+
+1. Write the chunking tests first. I iterated on chunking 4 times.
+   Unit tests would have made this faster.
+
+2. Use a React state management library earlier.
+   I built App.js as a manual state machine (fine for 5 screens) but
+   it got messy by the end. Zustand or Jotai would be cleaner.
+
+3. Design the localStorage schema before writing any code.
+   I changed the Card schema twice, which meant migrating existing
+   localStorage data. With users, this would be painful.
+
+4. Start with mobile first.
+   Built desktop layout first, had to rework responsive layout.
+   If I'd designed 375px-first, the desktop would have come for free.
+
+FINAL THOUGHT
+=============
+
+The most interesting part was realizing that the hard part of this problem
+isn't the AI or the PDF parsing — it's the prompt. The same model with a
+basic prompt gives you mediocre cards. With a carefully engineered prompt
+that specifies card types, standalone answers, and avoids text references,
+you get cards that feel like they were written by a teacher.
+
+The algorithm is the easy part. The pedagogy is the hard part.

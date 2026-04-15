@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: flashcard-engine-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: AI_MODE
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false        # Must be set manually in Render dashboard
+      - key: ALLOWED_ORIGINS
+        sync: false        # Set to your Vercel URL in Render dashboard
+      - key: OLLAMA_URL
+        value: http://localhost:11434
+      - key: OLLAMA_MODEL
+        value: gemma3:1b
