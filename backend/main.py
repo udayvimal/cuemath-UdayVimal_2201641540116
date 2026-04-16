@@ -6,6 +6,8 @@ Entry point: uvicorn main:app --reload --port 8000
 """
 
 import os
+import asyncio
+import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -49,6 +51,37 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Register routes
 app.include_router(generate_router, prefix="/api")
 app.include_router(health_router, prefix="/api")
+
+
+async def _warmup_groq():
+    """Pre-warm the Groq HTTP connection on startup.
+    Costs 1 token. Ensures the first real user request never hits a cold connection."""
+    await asyncio.sleep(3)  # let server finish initializing first
+    api_key = os.getenv("GROQ_API_KEY", "")
+    model   = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    ai_mode = os.getenv("AI_MODE", "ollama")
+    if ai_mode != "groq" or not api_key:
+        return
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                json={
+                    "model": model,
+                    "messages": [{"role": "user", "content": "Hi"}],
+                    "max_tokens": 1,
+                },
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10.0,
+            )
+        print("[INFO] Groq connection warmed up")
+    except Exception as e:
+        print(f"[INFO] Groq warmup skipped: {e}")
+
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(_warmup_groq())
 
 
 @app.get("/")
