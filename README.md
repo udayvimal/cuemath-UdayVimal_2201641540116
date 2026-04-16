@@ -30,7 +30,7 @@
 
 ### Dashboard — stats, decks, spaced repetition schedule
 <!-- Save as images/ui-dashboard.png -->
-![Dashboard](images/ui-dashboard.png)
+![Dashboard](https://github.com/udayvimal/cuemath-UdayVimal_2201641540116/blob/main/images/DASHBOARD.png)
 
 ### API Health Endpoint — `GET /api/health`
 <!-- Save as images/api-health.png -->
