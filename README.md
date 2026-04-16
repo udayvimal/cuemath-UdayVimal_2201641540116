@@ -26,7 +26,7 @@
 
 ### Flashcard Study Session — full-screen flip card + rating buttons
 <!-- Save as images/ui-study.png -->
-![Study Session](images/ui-study.png)
+![Study Session](https://github.com/udayvimal/cuemath-UdayVimal_2201641540116/blob/main/images/FLASHCARD.png)
 
 ### Dashboard — stats, decks, spaced repetition schedule
 <!-- Save as images/ui-dashboard.png -->
