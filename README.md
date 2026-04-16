@@ -34,7 +34,7 @@
 
 ### API Health Endpoint — `GET /api/health`
 <!-- Save as images/api-health.png -->
-![Health Endpoint](images/api-health.png)
+![Health Endpoint](https://github.com/udayvimal/cuemath-UdayVimal_2201641540116/blob/main/images/Screenshot%202026-04-15%20222531.png)
 
 > **How to add your screenshots:**
 > 1. Screenshot each screen → save into the `images/` folder with the exact filenames above
