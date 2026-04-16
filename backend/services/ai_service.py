@@ -237,19 +237,25 @@ async def generate_all_cards(chunks: List[str], cards_per_chunk: int = 10) -> Li
 
     async def bounded(chunk: str, client: httpx.AsyncClient):
         async with semaphore:
-            try:
-                prompt = build_generation_prompt(chunk, cards_per_chunk)
-                if AI_MODE == "gemini":
-                    cards = await _generate_gemini(prompt, client)
-                elif AI_MODE == "groq":
-                    cards = await _generate_groq(prompt, client)
-                else:
-                    cards = await _generate_ollama(prompt, client)
-                print(f"[INFO] chunk produced {len(cards)} cards")
-                return cards
-            except Exception as e:
-                print(f"[WARN] chunk skipped: {e}")
-                return []
+            for attempt in range(3):
+                try:
+                    prompt = build_generation_prompt(chunk, cards_per_chunk)
+                    if AI_MODE == "gemini":
+                        cards = await _generate_gemini(prompt, client)
+                    elif AI_MODE == "groq":
+                        cards = await _generate_groq(prompt, client)
+                    else:
+                        cards = await _generate_ollama(prompt, client)
+                    print(f"[INFO] chunk produced {len(cards)} cards (attempt {attempt+1})")
+                    return cards
+                except Exception as e:
+                    if attempt < 2:
+                        wait = 1.5 * (attempt + 1)  # 1.5s, then 3s
+                        print(f"[WARN] attempt {attempt+1} failed, retrying in {wait}s: {e}")
+                        await asyncio.sleep(wait)
+                    else:
+                        print(f"[WARN] chunk skipped after 3 attempts: {e}")
+                        return []
 
     async with httpx.AsyncClient() as client:
         results = await asyncio.gather(*[bounded(c, client) for c in chunks])
