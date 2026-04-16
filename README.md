@@ -22,7 +22,7 @@
 
 ### Upload Page — "Try Calculus Sample Notes" · no upload needed
 <!-- Save as images/ui-upload.png → commit → GitHub renders automatically -->
-![Upload UI](images/ui-upload.png)
+![Upload UI](https://github.com/udayvimal/cuemath-UdayVimal_2201641540116/blob/main/images/UPLOADPDF.png)
 
 ### Flashcard Study Session — full-screen flip card + rating buttons
 <!-- Save as images/ui-study.png -->
