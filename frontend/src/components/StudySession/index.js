@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudySession } from '../../hooks/useStudySession';
 import { RATINGS } from '../../utils/spacedRepetition';
@@ -47,6 +47,18 @@ function ImportanceBadge({ score }) {
   );
 }
 
+const COMBO_MSGS = { 3: '🔥 3 in a row!', 5: '⚡ 5 Combo!', 10: '🚀 PERFECT 10!', 15: '💎 UNSTOPPABLE!' };
+
+const SHORTCUTS = [
+  { key: 'Space', action: 'Flip card' },
+  { key: '1', action: 'Again — show again today' },
+  { key: '2', action: 'Hard — review in 1 day' },
+  { key: '3', action: 'Good — review in a few days' },
+  { key: '4', action: 'Easy — review in weeks' },
+  { key: '?', action: 'Toggle this shortcuts panel' },
+  { key: 'Esc', action: 'Close shortcuts panel' },
+];
+
 export default function StudySession({ deck, maxCards, onComplete, onExit, onCardUpdate }) {
   const {
     currentCard, isFlipped, isComplete, sessionStats,
@@ -55,8 +67,13 @@ export default function StudySession({ deck, maxCards, onComplete, onExit, onCar
 
   const [elapsed, setElapsed] = useState(0);
   const [showToast, setShowToast] = useState(false);
+  const [combo, setCombo] = useState(0);
+  const [comboMsg, setComboMsg] = useState('');
+  const [showComboToast, setShowComboToast] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const timerRef = useRef();
   const toastShown = useRef(false);
+  const comboTimer = useRef(null);
 
   // Timer
   useEffect(() => {
@@ -82,21 +99,39 @@ export default function StudySession({ deck, maxCards, onComplete, onExit, onCar
     }
   }, [isComplete, sessionStats, onComplete, elapsed]);
 
+  // Combo rating handler
+  const handleRate = useCallback((rating) => {
+    const isGood = rating === RATINGS.GOOD || rating === RATINGS.EASY;
+    setCombo(prev => {
+      const next = isGood ? prev + 1 : 0;
+      if (COMBO_MSGS[next]) {
+        setComboMsg(COMBO_MSGS[next]);
+        setShowComboToast(true);
+        clearTimeout(comboTimer.current);
+        comboTimer.current = setTimeout(() => setShowComboToast(false), 2200);
+      }
+      return next;
+    });
+    rateCard(rating);
+  }, [rateCard]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handler = e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === '?') { setShowShortcuts(v => !v); return; }
+      if (e.key === 'Escape') { setShowShortcuts(false); return; }
       if (e.code === 'Space' && !isFlipped) { e.preventDefault(); flipCard(); }
       if (isFlipped) {
-        if (e.key === '1') rateCard(RATINGS.AGAIN);
-        if (e.key === '2') rateCard(RATINGS.HARD);
-        if (e.key === '3') rateCard(RATINGS.GOOD);
-        if (e.key === '4') rateCard(RATINGS.EASY);
+        if (e.key === '1') handleRate(RATINGS.AGAIN);
+        if (e.key === '2') handleRate(RATINGS.HARD);
+        if (e.key === '3') handleRate(RATINGS.GOOD);
+        if (e.key === '4') handleRate(RATINGS.EASY);
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isFlipped, flipCard, rateCard]);
+  }, [isFlipped, flipCard, handleRate]);
 
   // No due cards
   if (dueCount === 0) {
@@ -123,6 +158,36 @@ export default function StudySession({ deck, maxCards, onComplete, onExit, onCar
 
   return (
     <div className="study-session">
+      {/* Shortcuts modal */}
+      <AnimatePresence>
+        {showShortcuts && (
+          <motion.div
+            className="shortcuts-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowShortcuts(false)}
+          >
+            <motion.div
+              className="shortcuts-panel"
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="shortcuts-title">⌨️ Keyboard Shortcuts</div>
+              {SHORTCUTS.map(s => (
+                <div key={s.key} className="shortcut-row">
+                  <kbd className="shortcut-key">{s.key}</kbd>
+                  <span className="shortcut-action">{s.action}</span>
+                </div>
+              ))}
+              <button className="shortcuts-close" onClick={() => setShowShortcuts(false)}>Close</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Top bar */}
       <div className="session-bar">
         <button className="session-exit" onClick={onExit}>← Exit</button>
@@ -147,12 +212,18 @@ export default function StudySession({ deck, maxCards, onComplete, onExit, onCar
         </div>
 
         <span className="session-timer">{formatTime(elapsed)}</span>
+        {combo >= 3 && (
+          <span className="combo-badge" style={{ color }}>🔥 {combo}</span>
+        )}
+        <button className="shortcuts-trigger" onClick={() => setShowShortcuts(v => !v)} title="Keyboard shortcuts (?)">
+          ⌨️
+        </button>
       </div>
 
       {/* Card viewport */}
       <div className="card-viewport">
         {/* Flashcard */}
-        <div className="flashcard-wrap">
+        <div className="flashcard-wrap" style={{ filter: `drop-shadow(0 0 28px ${color}55)` }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={currentCard.id}
@@ -163,7 +234,7 @@ export default function StudySession({ deck, maxCards, onComplete, onExit, onCar
             >
               <div
                 className={`flashcard ${isFlipped ? 'flipped' : ''}`}
-                style={{ minHeight: 320 }}
+                style={{ minHeight: 400 }}
               >
                 {/* Front */}
                 <div
@@ -184,9 +255,13 @@ export default function StudySession({ deck, maxCards, onComplete, onExit, onCar
                   <div className="card-question-text">{currentCard.front}</div>
 
                   {!isFlipped && (
-                    <div className="card-flip-hint">
-                      Tap to reveal · <kbd>Space</kbd>
-                    </div>
+                    <button
+                      className="flip-btn"
+                      onClick={e => { e.stopPropagation(); flipCard(); }}
+                    >
+                      👁 Reveal Answer
+                      <span className="flip-btn-hint">or press Space</span>
+                    </button>
                   )}
 
                   <div className="card-diff-row">
@@ -253,7 +328,7 @@ export default function StudySession({ deck, maxCards, onComplete, onExit, onCar
                   <button
                     key={b.rating}
                     className="rating-btn"
-                    onClick={() => rateCard(b.rating)}
+                    onClick={() => handleRate(b.rating)}
                     style={{ backgroundColor: b.bg, borderColor: b.border, color: b.text }}
                   >
                     <span className="rbtn-label">{b.label}</span>
@@ -275,11 +350,26 @@ export default function StudySession({ deck, maxCards, onComplete, onExit, onCar
         {!isFlipped && (
           <div className="session-footer">
             <span style={{ fontSize: '0.78rem', color: 'var(--cue-gray-400)' }}>
-              Press <kbd>Space</kbd> to flip · <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> to rate
+              <kbd>Space</kbd> flip · <kbd>1</kbd> Again · <kbd>2</kbd> Hard · <kbd>3</kbd> Good · <kbd>4</kbd> Easy
             </span>
           </div>
         )}
       </div>
+
+      {/* Combo toast */}
+      <AnimatePresence>
+        {showComboToast && (
+          <motion.div
+            className="combo-toast"
+            initial={{ opacity: 0, scale: 0.7, y: 30 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.7, y: 30 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          >
+            {comboMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Pro-tip toast */}
       <AnimatePresence>

@@ -27,13 +27,20 @@ function SplashScreen({ onDone }) {
 
   return (
     <div className="splash-screen">
-      <div style={{ fontSize: '3.5rem' }}>🧠</div>
+      <div className="splash-grid" />
+      <div style={{ fontSize: '4rem', filter: 'drop-shadow(0 0 24px rgba(255,255,255,0.5))' }}>🧠</div>
       <div className="splash-logo">Cuemath Assistant</div>
       <div className="splash-sub">Study smarter. Remember forever.</div>
+      <div className="splash-chips">
+        {['SM-2 Algorithm', 'Groq LLaMA 3.3', 'Spaced Repetition', '8 Card Types'].map(t => (
+          <span key={t} className="splash-chip">{t}</span>
+        ))}
+      </div>
       <div className="splash-builder">Built by Uday Vimal · Cuemath AI Builder Challenge 2026</div>
       <div className="splash-bar-track">
         <div className="splash-bar-fill" />
       </div>
+      <div className="splash-init">INITIALIZING STUDY ENGINE...</div>
     </div>
   );
 }
@@ -67,10 +74,10 @@ export default function App() {
 
   const goTo = (s) => setScreen(s);
 
-  // Go to briefing before any study session — every entry point uses this
+  // Go directly to study — skip briefing (shortcuts available via ⌨️ button in session)
   const goToBriefing = (deckId) => {
     setActiveDeckId(deckId);
-    setScreen('briefing');
+    setScreen('study');
   };
 
   const handleUploadComplete = (apiResponse) => {
@@ -110,7 +117,7 @@ export default function App() {
         deck={activeDeck}
         maxCards={maxCards}
         onComplete={handleSessionComplete}
-        onExit={() => { setScreen('briefing'); refreshDecks(); }}
+        onExit={() => { setScreen('deck'); refreshDecks(); }}
         onCardUpdate={updateCardSm2}
       />
     );

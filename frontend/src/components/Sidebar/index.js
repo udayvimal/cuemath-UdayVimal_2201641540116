@@ -2,7 +2,6 @@ import React from 'react';
 
 const NAV = [
   { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
-  { id: 'upload',    icon: '📤', label: 'Upload PDF' },
   { id: 'deck',      icon: '📚', label: 'My Decks' },
   { id: 'study',     icon: '⚡', label: 'Study Now', badge: true },
   { id: 'settings',  icon: '⚙️', label: 'Settings' },
@@ -28,13 +27,23 @@ export default function Sidebar({ screen, onNavigate, dueCount, onInfo }) {
         <div className="sidebar-builder">by Uday Vimal</div>
       </div>
 
+      {/* Upload CTA — always visible, impossible to miss */}
+      <button
+        className={`sidebar-upload-cta ${activeId === 'upload' ? 'active' : ''}`}
+        onClick={() => onNavigate('upload')}
+      >
+        <span style={{ fontSize: '1rem' }}>📤</span>
+        <span>Upload PDF</span>
+        <span style={{ marginLeft: 'auto', fontSize: '1.1rem', fontWeight: 700 }}>+</span>
+      </button>
+
       {/* Nav */}
       <nav className="sidebar-nav">
         <div className="sidebar-section-label">Navigation</div>
         {NAV.map(item => (
           <button
             key={item.id}
-            className={`sidebar-item ${activeId === item.id ? 'active' : ''}`}
+            className={`sidebar-item ${activeId === item.id ? 'active' : ''} ${item.id === 'study' && dueCount > 0 ? 'study-neon' : ''}`}
             onClick={() => {
               if (item.id === 'study' && dueCount === 0) return;
               onNavigate(item.id);

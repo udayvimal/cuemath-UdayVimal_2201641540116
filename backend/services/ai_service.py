@@ -106,7 +106,7 @@ async def _generate_ollama(prompt: str, client: httpx.AsyncClient) -> List[Dict[
         "options": {
             "temperature": 0.4,   # lower = more consistent JSON output
             "top_p": 0.9,
-            "num_predict": 4096,  # allow long responses for many cards
+            "num_predict": 2500,  # ~230 tokens/card × 10 cards = 2300 needed
             "repeat_penalty": 1.1,
         },
     }
@@ -132,7 +132,7 @@ async def _generate_groq(prompt: str, client: httpx.AsyncClient) -> List[Dict[st
             {"role": "user",   "content": prompt},
         ],
         "temperature": 0.4,
-        "max_tokens": 4096,
+        "max_tokens": 1500,
         "top_p": 0.9,
     }
     headers = {
@@ -156,7 +156,7 @@ async def _generate_gemini(prompt: str, client: httpx.AsyncClient) -> List[Dict[
         raise ValueError("GEMINI_API_KEY is not set. Add it in Render dashboard environment variables.")
     payload = {
         "contents": [{"parts": [{"text": SYSTEM_PROMPT + "\n\n" + prompt}]}],
-        "generationConfig": {"temperature": 0.4, "topP": 0.9, "maxOutputTokens": 4096},
+        "generationConfig": {"temperature": 0.4, "topP": 0.9, "maxOutputTokens": 1500},
     }
     try:
         response = await client.post(f"{GEMINI_ENDPOINT}?key={GEMINI_API_KEY}", json=payload, timeout=60.0)
@@ -167,6 +167,38 @@ async def _generate_gemini(prompt: str, client: httpx.AsyncClient) -> List[Dict[
         raise RuntimeError(f"Gemini API error {e.response.status_code}: {e.response.text}")
     except Exception as e:
         raise RuntimeError(f"Gemini error: {e}")
+
+
+def _escape_control_chars_in_strings(s: str) -> str:
+    """Escape bare control characters ONLY inside JSON string values.
+
+    Small models often copy source text verbatim into back/front fields,
+    including math symbols and arrows that become bare control chars.
+    A simple global regex also corrupts structural newlines — this parser
+    walks the JSON character by character and only touches chars inside strings.
+    """
+    result = []
+    in_string = False
+    escape_next = False
+    for ch in s:
+        if escape_next:
+            result.append(ch)
+            escape_next = False
+        elif ch == '\\' and in_string:
+            result.append(ch)
+            escape_next = True
+        elif ch == '"':
+            in_string = not in_string
+            result.append(ch)
+        elif in_string and ord(ch) < 32:
+            # Escape control characters inside string values
+            if ch == '\n':   result.append('\\n')
+            elif ch == '\r': result.append('\\r')
+            elif ch == '\t': result.append('\\t')
+            # Drop all other control chars (NUL, BEL, ESC, etc.)
+        else:
+            result.append(ch)
+    return ''.join(result)
 
 
 def _parse_json(raw: str) -> List[Dict[str, Any]]:
@@ -180,20 +212,17 @@ def _parse_json(raw: str) -> List[Dict[str, Any]]:
 
     json_str = match.group(0)
 
-    # Sanitize invalid JSON control characters that small models (Gemma3:1b) emit.
-    # JSON only allows \t \n \r as unescaped whitespace inside strings.
-    # Everything else in the C0/C1 range is illegal and causes JSONDecodeError.
+    # Step 1: strip illegal C0 control chars from the raw text (outside strings too)
     json_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', json_str)
+
+    # Step 2: fix bare control chars that survived inside JSON string values
+    json_str = _escape_control_chars_in_strings(json_str)
 
     try:
         cards = json.loads(json_str)
     except json.JSONDecodeError:
         # Fix trailing commas (common AI output issue)
         json_str = re.sub(r',\s*([}\]])', r'\1', json_str)
-        # One more pass — escape any remaining bare newlines inside string values
-        json_str = re.sub(r'(?<!\\)\n', r'\\n', json_str)
-        json_str = re.sub(r'(?<!\\)\r', r'\\r', json_str)
-        json_str = re.sub(r'(?<!\\)\t', r'\\t', json_str)
         cards = json.loads(json_str)
 
     if not isinstance(cards, list):

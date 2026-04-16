@@ -80,6 +80,17 @@ export default function Upload({ onDeckCreated }) {
     setDeckName(name.charAt(0).toUpperCase() + name.slice(1));
   }, []);
 
+  const loadSample = useCallback(async () => {
+    try {
+      const res = await fetch('/sample-calculus.pdf');
+      const blob = await res.blob();
+      const f = new File([blob], 'Calculus Sample Notes.pdf', { type: 'application/pdf' });
+      handleFile(f);
+    } catch {
+      setError('Could not load sample PDF. Please upload your own.');
+    }
+  }, [handleFile]);
+
   const handleDrop = useCallback((e) => {
     e.preventDefault(); setDragOver(false);
     handleFile(e.dataTransfer.files[0]);
@@ -156,6 +167,20 @@ export default function Upload({ onDeckCreated }) {
               </div>
             ))}
           </div>
+          <div className="upload-left-metrics">
+            {[
+              { val: '8',      label: 'Card Types' },
+              { val: '~30s',   label: 'Generation' },
+              { val: '85%',    label: 'Quality Pass' },
+              { val: 'SM-2',   label: 'Algorithm' },
+            ].map(m => (
+              <div key={m.label} className="ulm-item">
+                <div className="ulm-val">{m.val}</div>
+                <div className="ulm-label">{m.label}</div>
+              </div>
+            ))}
+          </div>
+
           <div className="upload-left-badge">
             Powered by Groq Llama 3.3 70B · Gemini 1.5 Flash (prod) · Ollama Gemma3:1b (dev)
           </div>
@@ -233,6 +258,60 @@ export default function Upload({ onDeckCreated }) {
                     Generate Cards ✨
                   </Button>
                 </motion.div>
+              )}
+
+              {!file && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    <div style={{ flex: 1, height: 1, background: 'var(--cue-gray-200)' }} />
+                    <span style={{ fontSize: '0.78rem', color: 'var(--cue-gray-400)', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                      — or try our sample —
+                    </span>
+                    <div style={{ flex: 1, height: 1, background: 'var(--cue-gray-200)' }} />
+                  </div>
+                  <button
+                    onClick={loadSample}
+                    style={{
+                      width: '100%',
+                      background: 'linear-gradient(135deg, #FFF4F0 0%, #FFF0EB 100%)',
+                      border: '2px solid var(--cue-orange)',
+                      color: 'var(--cue-orange)',
+                      borderRadius: 12,
+                      padding: '16px 24px',
+                      fontSize: '1rem',
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-heading)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      transition: 'all 0.15s',
+                      boxShadow: '0 2px 12px rgba(255,107,53,0.12)',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #FFE8DF 0%, #FFE0D5 100%)';
+                      e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,107,53,0.25)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'linear-gradient(135deg, #FFF4F0 0%, #FFF0EB 100%)';
+                      e.currentTarget.style.boxShadow = '0 2px 12px rgba(255,107,53,0.12)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontSize: '1.6rem' }}>📐</span>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 700 }}>Try Calculus Sample Notes</div>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 400, opacity: 0.75, marginTop: 2 }}>
+                          No upload needed · Generates 10 cards instantly
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '1.2rem', opacity: 0.6 }}>→</span>
+                  </button>
+                </div>
               )}
 
               {!file && error && <div className="upload-error" style={{ marginTop: 12 }}>⚠️ {error}</div>}

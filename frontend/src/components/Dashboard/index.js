@@ -94,6 +94,32 @@ export default function Dashboard({ decks, onUpload, onDeckSelect, onDeleteDeck,
 
   return (
     <div>
+      {/* Hero CTA — always at top, impossible to miss */}
+      <div className="dash-hero-cta">
+        <button className="dash-hero-btn dash-hero-upload" onClick={onUpload}>
+          <span className="dash-hero-icon">📤</span>
+          <div>
+            <div className="dash-hero-title">Upload PDF</div>
+            <div className="dash-hero-sub">Textbook, notes, any PDF</div>
+          </div>
+        </button>
+        <div className="dash-hero-divider">or</div>
+        <button
+          className="dash-hero-btn dash-hero-study"
+          onClick={() => topDueDeck && onDeckSelect(topDueDeck.deck.id)}
+          disabled={!topDueDeck}
+          style={{ opacity: topDueDeck ? 1 : 0.45, cursor: topDueDeck ? 'pointer' : 'not-allowed' }}
+        >
+          <span className="dash-hero-icon">⚡</span>
+          <div>
+            <div className="dash-hero-title">Start Learning</div>
+            <div className="dash-hero-sub">
+              {topDueDeck ? `${topDueDeck.stats.dueCount} cards due now` : 'No cards due yet'}
+            </div>
+          </div>
+        </button>
+      </div>
+
       {/* Competition banner */}
       <div className="comp-banner">
         <div className="comp-banner-left">
@@ -269,7 +295,7 @@ export default function Dashboard({ decks, onUpload, onDeckSelect, onDeleteDeck,
                 onChange={e => setSearch(e.target.value)}
               />
             )}
-            <Button variant="primary" size="md" onClick={onUpload}>+ New Deck</Button>
+            <Button variant="primary" size="lg" onClick={onUpload}>+ New Deck</Button>
           </div>
         </div>
 

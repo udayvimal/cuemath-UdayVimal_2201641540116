@@ -21,7 +21,7 @@ def validate_and_filter(raw_cards: List[Dict[str, Any]]) -> List[Dict[str, Any]]
     validated = [c for c in (_validate_schema(r) for r in raw_cards) if c]
     quality   = [c for c in validated if _passes_quality(c)]
     unique    = _deduplicate(quality)
-    print(f"[INFO] quality filter: {len(raw_cards)} raw → {len(validated)} valid schema → {len(quality)} quality → {len(unique)} unique")
+    print(f"[INFO] quality filter: {len(raw_cards)} raw -> {len(validated)} valid -> {len(quality)} quality -> {len(unique)} unique")
     return unique
 
 
