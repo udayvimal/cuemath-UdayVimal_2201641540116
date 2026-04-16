@@ -117,7 +117,9 @@ export default function Upload({ onDeckCreated }) {
     }, 1800);
 
     try {
-      const data = await generateFlashcards(file, deckName);
+      const data = await generateFlashcards(file, deckName, (attempt) => {
+        setGenMessage(`Connection issue — retrying... (attempt ${attempt + 1}/3)`);
+      });
       clearInterval(progInterval.current);
       clearInterval(msgInterval.current);
       setProgress(100); setGenStep(3);
