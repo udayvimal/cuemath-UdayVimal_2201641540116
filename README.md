@@ -11,7 +11,7 @@
 ---
 
 ## Live Demo
-**[→ Click here to use the app](https://flashcard-engine.vercel.app)**
+**[→ Click here to use the app](https://cuemath-uday-vimal-2201641540116.vercel.app/)**
 
 ## Video Walkthrough
 **[→ Watch 3-minute demo on Loom](https://loom.com/share/YOUR_LINK)**
