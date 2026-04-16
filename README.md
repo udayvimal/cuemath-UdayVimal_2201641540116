@@ -36,10 +36,7 @@
 <!-- Save as images/api-health.png -->
 ![Health Endpoint](https://github.com/udayvimal/cuemath-UdayVimal_2201641540116/blob/main/images/Screenshot%202026-04-15%20222531.png)
 
-> **How to add your screenshots:**
-> 1. Screenshot each screen → save into the `images/` folder with the exact filenames above
-> 2. `git add images/ && git commit -m "add screenshots" && git push`
-> 3. GitHub renders them automatically. The `images/` folder is **not** part of the build or deployment.
+
 
 ---
 
