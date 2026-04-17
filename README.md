@@ -435,7 +435,7 @@ Built using **[Claude Code](https://claude.ai/code)** as a pair programmer — n
 
 **Uday Vimal** — B.Tech student passionate about building products that sit at the intersection of AI and real learning outcomes.
 
-I picked this problem because I've used Anki for years and always wondered what it would look like if the card generation was as good as the scheduling. This project is my answer to that.
+
 
 - GitHub: [github.com/udayvimal](https://github.com/udayvimal)
 - Email: udayvimal08@gmail.com
