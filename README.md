@@ -424,10 +424,9 @@ cuemath-UdayVimal/
 
 Built using **[Claude Code](https://claude.ai/code)** as a pair programmer — not a code generator. Every technical decision (chunking strategy, SM-2 implementation, prompt design, retry architecture) was reasoned through in conversation before being written. Claude handled first drafts and boilerplate; I handled correctness, debugging, and product decisions.
 
-<!-- Add your Claude Code screenshot below — save as images/claude-code.png and commit -->
 [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-FF6B35?style=flat-square&logo=anthropic&logoColor=white)](https://claude.ai/code)
 
-<!-- REPLACE THIS LINE with your image: ![Claude Code](images/claude-code.png) -->
+![Claude Code in action](https://github.com/udayvimal/cuemath-UdayVimal_2201641540116/blob/main/images/claude-code.png?raw=true)
 
 ---
 
