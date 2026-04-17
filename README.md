@@ -18,6 +18,77 @@
 
 ---
 
+## Round 2 — Decisions, Trade-offs & What I'd Improve
+
+### Key Decisions
+
+**SM-2 over Leitner boxes.**
+Leitner is a coarse approximation — cards live in one of N boxes and move forward or backward. SM-2 gives every card its own ease factor and grows intervals exponentially: 1 → 6 → 15 → 40 days. The formula is a parabola in q. I wanted the algorithm to be the product, not just a checkbox. I hand-coded it from scratch, got the formula wrong on the first try, and unit-tested the values by hand. That's how I know it actually works.
+
+**Paragraph-based chunking over fixed character splits.**
+A fixed 2,500-character split breaks mid-sentence. The AI then generates cards about half-concepts — cards that say "as described earlier" about something it never saw. Paragraph chunking preserves semantic units. The 2,500-char limit is empirical: above it, the model loses focus and quality drops. Below it, chunks are too thin to generate variety.
+
+**Groq Llama 3.3 70B as the production AI.**
+14,400 requests/day, 500k tokens/day, ~3 seconds per generation — free. More importantly, the architecture is one environment variable away from switching to Gemini or Ollama. I tested all three. The abstraction cost was near zero and the flexibility was worth it during development.
+
+**localStorage over a database.**
+SM-2 state is inherently per-device — exactly like Anki. No auth, no backend persistence, works offline, zero infrastructure cost. The tradeoff is no cross-device sync. For this use case that's acceptable. If I were shipping this as a real product, I'd add a Supabase backend in a week.
+
+---
+
+### Trade-offs I Made Consciously
+
+| Decision | What I gave up | Why it was worth it |
+|----------|---------------|---------------------|
+| 10 cards per chunk max | Fewer cards per PDF | Quality is far better at 10 — model stays focused |
+| No user accounts | No personalization across devices | Zero infrastructure, deploys in minutes |
+| Free Render tier | Occasional cold start on first request | Added 3-layer retry: warmup + backend retry + frontend retry — handles it |
+| Single PDF at a time | Bulk upload | Keeps the UX simple and the generation time predictable |
+| No card editing | Users can't fix AI mistakes | Reduces complexity; the quality filter rejects most bad cards anyway |
+
+---
+
+### What I'd Improve With More Time
+
+1. **Cross-device sync** — A lightweight Supabase table for SM-2 state. The schema is simple: card_id, ease_factor, interval, next_review. One hour of work.
+2. **Better weak area detection** — Right now it's ease factor averaged by topic. A forgetting curve model (exponential decay per card) would be more accurate.
+3. **Card editing** — Let users fix or rewrite AI-generated cards. The data model already supports it; the UI doesn't.
+4. **Bulk PDF processing** — Queue multiple PDFs, process in background, notify when ready.
+5. **Export to Anki** — Generate `.apkg` files so users can import their deck into Anki. The card data is already in the right format.
+6. **Image support** — PDFs with diagrams currently lose the visual context. OCR + image embedding would fix this.
+
+---
+
+## How I Used Claude Code
+
+I used **[Claude Code](https://claude.ai/code)** — Anthropic's AI coding assistant — as a full pair programmer throughout this build. Here's specifically how:
+
+### Architecture & Planning
+I started by describing the problem to Claude and asking what the most interesting technical challenges were. It identified the same two I cared about — card quality and scheduling — and helped me think through the architecture before writing a single line. We settled on FastAPI + localStorage + SM-2 in about 15 minutes of back-and-forth.
+
+### Implementation
+Claude wrote the initial versions of every major file: the FastAPI routes, the PyMuPDF chunker, the SM-2 algorithm, the React components, and the CSS. I reviewed everything, caught mistakes (the SM-2 formula was wrong on the first pass), and iterated. It was closer to code review than code generation — I was driving the decisions, Claude was handling the boilerplate and first drafts.
+
+### Debugging Real Problems
+This is where Claude Code was most valuable. Three specific incidents:
+
+- **CORS errors on 500 responses** — FastAPI's CORS middleware doesn't attach headers to unhandled exceptions. I pasted the error, Claude identified the exact cause, added a global exception handler in `main.py`. Fixed in 5 minutes.
+- **JSON control character crashes** — Small models emit raw control characters inside JSON strings. A global regex fix broke structural newlines. Claude designed a character-by-character parser that only escapes chars *inside* string values. I wouldn't have thought of that approach on my own.
+- **First upload always failing** — Groq's cold connection + Render free tier spin-down. Claude added three layers: a Groq warmup call on server startup, backend retry with exponential backoff, and frontend silent retry. The user never sees a failure.
+
+### Prompt Engineering
+I iterated the AI prompt with Claude's help. The key insight — naming all 8 card types explicitly rather than describing them — came from analyzing why the model kept producing 90% concept cards. Claude helped me understand the model's behavior and write a prompt that forces variety.
+
+### UI/UX Iterations
+I described what I wanted ("make the flashcard bigger and more visible", "upload PDF should be impossible to miss"), Claude made the changes, and I reviewed the result in the browser. Several rounds of this. The final UI is significantly different from the first version.
+
+### What I Didn't Use Claude For
+- The SM-2 formula verification — I checked the original Wozniak paper myself
+- Deployment decisions — I chose Render + Vercel based on my own experience
+- The "Why This Problem" section — that's genuinely my reasoning, not generated text
+
+---
+
 ## Screenshots
 
 ### Upload Page — "Try Calculus Sample Notes" · no upload needed
@@ -351,6 +422,31 @@ cuemath-UdayVimal/
 
 ## Built With
 
+Built using **[Claude Code](https://claude.ai/code)** as a pair programmer — not a code generator. Every technical decision (chunking strategy, SM-2 implementation, prompt design, retry architecture) was reasoned through in conversation before being written. Claude handled first drafts and boilerplate; I handled correctness, debugging, and product decisions.
+
+<!-- Add your Claude Code screenshot below — save as images/claude-code.png and commit -->
 [![Built with Claude Code](https://img.shields.io/badge/Built%20with-Claude%20Code-FF6B35?style=flat-square&logo=anthropic&logoColor=white)](https://claude.ai/code)
 
-This project was built using **[Claude Code](https://claude.ai/code)** — Anthropic's AI coding assistant — for architecture, implementation, debugging, and UI design.
+<!-- REPLACE THIS LINE with your image: ![Claude Code](images/claude-code.png) -->
+
+---
+
+## About Me
+
+**Uday Vimal** — B.Tech student passionate about building products that sit at the intersection of AI and real learning outcomes.
+
+I picked this problem because I've used Anki for years and always wondered what it would look like if the card generation was as good as the scheduling. This project is my answer to that.
+
+- GitHub: [github.com/udayvimal](https://github.com/udayvimal)
+- Email: udayvimal08@gmail.com
+
+---
+
+<p align="center">
+  <sub>Built for the Cuemath AI Builder Challenge 2026 · Problem 1: The Flashcard Engine</sub><br/>
+  <sub>
+    <a href="https://claude.ai/code">
+      <img src="https://img.shields.io/badge/Built%20with-Claude%20Code-FF6B35?style=flat-square&logo=anthropic&logoColor=white" alt="Built with Claude Code"/>
+    </a>
+  </sub>
+</p>
