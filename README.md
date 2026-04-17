@@ -14,7 +14,7 @@
 **[→ Click here to use the app](https://cuemath-uday-vimal-2201641540116.vercel.app/)**
 
 ## Video Walkthrough
-**[→ Watch 3-minute demo on Loom](https://loom.com/share/YOUR_LINK)**
+**[→ Watch 3-minute demo on Loom](https://www.loom.com/share/b74b716eb5524cd68df66d9bb910231b)**
 
 ---
 
